@@ -7,7 +7,7 @@ const carCtx = carCanvas.getContext('2d');
 const networkCtx = networkCanvas.getContext('2d');
 
 const road = new Road(carCanvas.width/2, carCanvas.width*0.9, 3);
-
+Car.setPassedThreshold(25);
 const n = 1000;
 const cars = generateCars(n);
 let bestCar = cars[0];
@@ -15,19 +15,21 @@ if(localStorage.getItem("bestBrain")) {
     for(let i = 1; i < cars.length; i++) {  
         cars[i].brain = JSON.parse(localStorage.getItem("bestBrain"));
         if(i != 0) {
-            NeuralNetwork.mutate(cars[i].brain, 0.15);
+            NeuralNetwork.mutate(cars[i].brain, 0.12);
         }
     }
 }
-const traffic = [
-    new Car(road.getLaneCenter(0), -300, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(1), -100, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(2), -300, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(0), -500, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(1), -500, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(1), -700, 30, 50, "NPC", 2),
-    new Car(road.getLaneCenter(2), -700, 30, 50, "NPC", 2),
-];
+// const traffic = [
+//     new Car(road.getLaneCenter(0), -300, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(1), -100, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(2), -300, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(0), -500, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(1), -500, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(1), -700, 30, 50, "NPC", 2),
+//     new Car(road.getLaneCenter(2), -700, 30, 50, "NPC", 2),
+// ];
+
+traffic = generateTraffic();
 
 animate();
 
@@ -50,21 +52,40 @@ function generateCars(n) {
     return cars;
 }
 
+function generateTraffic() {
+    const traffic = [];
+    for(let i = 0; i < 25; i++) {
+        traffic.push(new Car(road.getLaneCenter(Math.floor(Math.random()*3)), -100*i, 30, 50, "NPC", 2));
+    }
+
+    return traffic;
+}
+
+function generateNewTraffic(traffic) {
+
+}
+
+function findBestCar(cars) {
+    let bestCarCandidates = cars.filter(c => c.score == Math.max(
+        ...cars.map(c => c.score)));
+    let bestCar = bestCarCandidates.find(c => c.y == Math.min(
+        ...bestCarCandidates.map(c => c.y)));
+    return bestCar;
+}
+
 function animate() {
     for(let i = 0; i < traffic.length; i++) {
         traffic[i].update(road.borders, []);
     }
     for(let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic);
+        for(let j = 0; j < traffic.length; j++) {
+            cars[i].calculatePassed(traffic[j]);
+        }
     }
 
-    //fitness function (largest y value)
-    //experiment with most cars passed?
-    bestCar = cars.find(
-        c => c.y == Math.min(
-            ...cars.map(c => c.y)
-        )
-    );
+    bestCar = findBestCar(cars);
+    console.log(bestCar.score);
 
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
