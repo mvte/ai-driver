@@ -1,4 +1,9 @@
 class Car {
+    static passed_threshold = 25;
+    static setPassedThreshold(value) {
+        this.passed_threshold = value;
+    }
+
     constructor(x,y,width,height,controlType,max_vel=3) {
         this.x = x;
         this.y = y;
@@ -22,7 +27,25 @@ class Car {
         }
 
         this.controls = new Controls(controlType);
+
+        //fitness function implenentation
+        this.score = 0;
+        this.passedCars = [];
     }
+
+    calculatePassed(car) {
+
+        if(this.y < car.y && !this.passedCars.includes(car)) {
+            this.passedCars.push(car);
+            this.score++;
+
+            if(this.passedCars.length > Car.passed_threshold) {
+                this.passedCars.pop();
+            }
+        }
+    }
+
+
 
     /**
      * updates the car and sensor positions/translations
