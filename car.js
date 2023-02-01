@@ -4,11 +4,13 @@ class Car {
         this.passed_threshold = value;
     }
 
-    constructor(x,y,width,height,controlType,max_vel=3) {
+    constructor(x,y,width,height,controlType,max_vel=3,generation,id) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+
+        this.name = generation + "." + id;
 
         this.vel = 0;
         this.acceleration = 0.2;
@@ -22,7 +24,7 @@ class Car {
         if(controlType != "NPC") {
             this.sensor = new Sensor(this);
             this.brain = new NeuralNetwork(
-                [this.sensor.rayCount, 6, 4] 
+                [this.sensor.rayCount, 6, 6, 4] 
             );
         }
 
@@ -33,8 +35,17 @@ class Car {
         this.passedCars = [];
     }
 
-    calculatePassed(car) {
+    reset(x,y) {
+        this.x = x;
+        this.y = y;
+        this.vel = 0;
+        this.angle = 0;
+        this.damaged = false;
+        this.score = 0;
+        this.passedCars = [];
+    }
 
+    calculatePassed(car) {
         if(this.y < car.y && !this.passedCars.includes(car)) {
             this.passedCars.push(car);
             this.score++;
