@@ -4,12 +4,27 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="infoBox">
+        <div id="infoBoxTitle">Info</div>
+        <div id="infoBoxContent">
+            <div id="infoBoxContentTitle">Generation</div>
+            <div id="generation">0</div>
+        </div>
+        <div id="infoBoxContent">
+            <div id="infoBoxContentTitle">Best fitness</div>
+            <div id="bestFitness">0</div>
+        </div>
+        <button onclick="train()">auto</button>
+        <button onclick="animateCurrentGen()">manual</button>
+    </div>
+    
     <div id="verticalButtons">
         <button onclick="save()">💾</button>
         <button onclick="discard()">🗑️</button>
     </div>
     <canvas id="carCanvas"></canvas>
     <canvas id="networkCanvas"></canvas>
+    <script src = "info.js"></script>
     <script src = "visualizer.js"></script>
     <script src = "sensor.js"></script>
     <script src = "network.js"></script>

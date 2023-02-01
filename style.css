@@ -1,3 +1,12 @@
+@font-face {
+    font-family:'Source Sans Pro', sans-serif;
+    src: url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro&display=swap');
+}
+
+html * {
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
 body {
     margin:0;
     background:rgb(131, 105, 83);
@@ -5,6 +14,31 @@ body {
     display:flex;
     justify-content:center;
     align-items:center;
+}
+
+#infoBox {
+    display:flex;
+    flex-direction:column;
+    margin-right: 20px;
+    border:#393939 1px solid;
+    background: white;
+
+    border-radius: 5px;
+}
+
+#infoBoxTitle {
+    margin: auto;
+    text-align:center;
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#infoBoxContent {
+    margin-left: 10px;
+    margin-right: 10px;
+    font-size: 15px;
+    margin-bottom: 10px;
 }
 
 #verticalButtons {
