@@ -1,3 +1,4 @@
+let worker = new Worker("worker.js");
 const carCanvas = document.getElementById('carCanvas');
 carCanvas.width = 210;
 const networkCanvas = document.getElementById('networkCanvas');
@@ -13,9 +14,9 @@ let generation = 0;
 const carCtx = carCanvas.getContext('2d');
 const networkCtx = networkCanvas.getContext('2d');
 
-const road = new Road(carCanvas.width/2, carCanvas.width*0.9, 3);
+let road = new Road(carCanvas.width/2, carCanvas.width*0.9, 3);
 Car.setPassedThreshold(25);
-const n = 1000;
+let n = 1000;
 let cars = generateCars(n, generation);
 let bestCar = cars[0]; 
 let traffic = generateTraffic();
@@ -23,59 +24,41 @@ let traffic = generateTraffic();
 Info.update(generation, bestCar.name);
 renderFirst();
 
-/**
- * Begins the training process. This function is called when the user clicks the
- * "train" button. It will generate 100 generations of cars, each generation 
- * consisting of 1000 cars. The best car of each generation will be saved and used
- * as the starting point for the next generation. 
- */
-function train() {
-    console.log('training started: 25 generations');
-    /*
-    * The training process is broken down into 3 steps:
-    * 1. Generate a new generation of cars
-    * 2. Run the current generation of cars (sped up by 10x)
-    * 3. Save the best car of the current generation
-    * 4. Repeat steps 1-3 until the desired number of generations is reached
-    */
+function onAutoClick() {
+    console.log("sendng message to worker.js");
+    let state = getState();
+    worker.postMessage(state);
 
-    while(generation == 0 || generation%25 != 0) {
-        //generate a new generation of cars
-        cars = generateCars(n, generation);
-        bestCar = cars[0];
-        if(localStorage.getItem("bestBrain")) {
-            for(let i = 1; i < cars.length; i++) {  
-                cars[i].brain = JSON.parse(localStorage.getItem("bestBrain"));
-                if(i != 0) {
-                    NeuralNetwork.mutate(cars[i].brain, 0.12);
-                }
-            }
-        }
-
-        //run the current generation of cars
-        frameCount = 0;
-        console.log('simulating gen: ' + generation);
-        simulateCurrentGen();
-
-        //save the best car
-        save();
-
-        //repeat steps 1-3 until the desired number of generations is reached
-        generation++;
-
-        //update the info box with the latest generation and score
-        Info.update(generation, bestCar.name);
+    worker.onmessage = (event) => {
+        console.log('received message: ' + event.data);
     }
-    
 }
 
-function simulateCurrentGen() {
-    frameCount = 0;
-    traffic = generateTraffic();
-    for(let i = 0; i < cars.length; i++) {              
-        cars[i].reset(road.getLaneCenter(1), 100);
-    }
-    simulate();
+function getState() {
+    // return ["auto", generation, cars, bestCar, traffic, road, n];
+    // pass all necessary data to reconstruct the objects to run the simulation
+
+    let bestCarData = {
+        "x": bestCar.x, "y": bestCar.y, "width": bestCar.width, "height": bestCar.height, 
+        "name": bestCar.name, "speed": bestCar.speed, "generation": bestCar.generation, "id": bestCar.id
+    };
+
+    let bestCarBrain = bestCar.brain;
+
+    let roadData = {
+        "x": road.x, "y": road.y, "width": road.width, "height": road.height, "laneWidth": road.laneWidth, "laneCount": road.laneCount
+    };
+
+    let state = {
+        "type": "auto",
+        "gen": generation,
+        "bestCarData": bestCarData,
+        "bestCarBrain": bestCarBrain,
+        "road": roadData,
+        "n": n
+    };
+
+    return state;
 }
 
 function animateCurrentGen() {
@@ -125,13 +108,13 @@ function generateTraffic() {
     ];
 }
 
-function findBestCar(cars) {
-    let bestCarCandidates = cars.filter(c => c.score == Math.max(
-        ...cars.map(c => c.score)));
-    let bestCar = bestCarCandidates.find(c => c.y == Math.min(
-        ...bestCarCandidates.map(c => c.y)));
-    return bestCar;
-}
+// function findBestCar(cars) {
+//     let bestCarCandidates = cars.filter(c => c.score == Math.max(
+//         ...cars.map(c => c.score)));
+//     let bestCar = bestCarCandidates.find(c => c.y == Math.min(
+//         ...bestCarCandidates.map(c => c.y)));
+//     return bestCar;
+// }
 
 function renderFirst() {
     carCanvas.height = window.innerHeight;
@@ -197,36 +180,4 @@ function animate() {
         lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
     }
     requestAnimationFrame(animate);
-}
-
-function simulate() {
-    for(let i = 0; i < traffic.length; i++) {
-        traffic[i].update(road.borders, []);
-    }
-    for(let i = 0; i < cars.length; i++) {
-        cars[i].update(road.borders, traffic);
-        for(let j = 0; j < traffic.length; j++) {
-            cars[i].calculatePassed(traffic[j]);
-        }
-    }
-
-    bestCar = findBestCar(cars);
-
-    Visualizer.drawNetwork(networkCtx, bestCar.brain);
-
-    if(bestCar.damaged == true) {
-        frameCount++;
-        if(frameCount > 300) {
-            return;
-        }
-    } else if (lastScore == bestCar.score && bestCar.score != 0) {
-        frameCount++;
-        if(frameCount > 700) {
-            return;
-        }
-    } else {
-        frameCount = 0;
-        lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
-    }
-    simulate();
 }
