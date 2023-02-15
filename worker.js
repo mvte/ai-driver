@@ -12,28 +12,30 @@ let n;
 let bestCarBrain;
 
 self.onmessage = (event) => {
-    console.log('received message: ' + event.data.type);
+    console.log('worker thread received message: ' + event.data.type);
     switch(event.data.type) {
         case "auto":
             initializeTraining(event);
             train();
             break;
+        default:
+            console.log("unrecognized message type");
     }
 }
 
 function initializeTraining(event) {
     generation = event.data.gen;
 
-    let bestCarData = event.data.bestCarData;
-    bestCar = new Car(bestCarData.x, bestCarData.y, bestCarData.width, 
-        bestCarData.height, "AI", bestCarData.speed, 
-        bestCarData.generation, bestCarData.id);
-    
-    bestCarBrain = event.data.bestCarBrain;
-    bestCar.brain = bestCarBrain;
+    let bestCarData = event.data.bestCar;
+    if(bestCarData) {
+        bestCar = new Car(bestCarData.x, bestCarData.y, bestCarData.width, 
+            bestCarData.height, "AI", bestCarData.speed, 
+            bestCarData.generation, bestCarData.id);
+        bestCar.brain = bestCarData.brain;
+    }
     
     let roadData = event.data.road;
-    road = new Road(roadData.x, roadData.y, roadData.width, roadData.height, roadData.laneWidth, roadData.laneCount);
+    road = new Road(roadData.x, roadData.width, roadData.laneCount);
 
     n = event.data.n;
 }
@@ -45,43 +47,59 @@ function initializeTraining(event) {
  * as the starting point for the next generation. 
  */
 function train() {
-    console.log('training started: 25 generations');
+    console.log('training started: 100 generations');
 
     do {
         //generate a new generation of cars
         cars = generateCars(n, generation);
-        bestCar = cars[0];
+        
         if(bestCarBrain) {
-            for(let i = 1; i < cars.length; i++) {  
-                cars[i].brain = bestCarBrain;
-                if(i != 0) {
+            for(let i = 0; i < cars.length; i++) {
+                cars[i].brain = JSON.parse(JSON.stringify(bestCarBrain));
+                if(i !=  0) {
                     NeuralNetwork.mutate(cars[i].brain, 0.12);
                 }
             }
         }
+        // why does this break everything?
+        // ...ur assigning a reference and then mutating the reference, so everything gets mutated..
 
         //run the current generation of cars
         frameCount = 0;
         console.log('simulating gen: ' + generation);
         simulateCurrentGen();
-
+        
         //save the best car
+        lastScore = 0;
         save();
 
         //repeat steps 1-3 until the desired number of generations is reached
         generation++;
 
         //update the info box with the latest generation and car
-        postMessage(["update", generation, bestCar]);
-    } while (generation%25 != 0);
+        console.log("sending to main thread: " + bestCar.name);
+        postMessage({
+            "type": "training_update", 
+            "generation": generation, 
+            "bestCar": bestCar
+        });
+
+    } while (generation%100 != 0);
+
+    postMessage({
+        "type": "training_complete", 
+        "generation": generation,
+        "cars": cars, 
+        "bestCar": bestCar
+    });
 }
 
 function findBestCar(cars) {
     let bestCarCandidates = cars.filter(c => c.score == Math.max(
         ...cars.map(c => c.score)));
-    let bestCar = bestCarCandidates.find(c => c.y == Math.min(
+    let best = bestCarCandidates.find(c => c.y == Math.min(
         ...bestCarCandidates.map(c => c.y)));
-    return bestCar;
+    return best;
 }
 
 
@@ -124,7 +142,7 @@ function simulateCurrentGen() {
 
 function save() {
     bestCarBrain = bestCar.brain;
-    console.log("saved brain...");
+    console.log("saved brain of " + bestCar.name);
     console.log(bestCar.brain);
 }
 
@@ -140,7 +158,6 @@ function simulate() {
     }
 
     bestCar = findBestCar(cars);
-    console.log(bestCar.score);
 
     if(bestCar.damaged == true) {
         frameCount++;
@@ -154,7 +171,11 @@ function simulate() {
         }
     } else {
         frameCount = 0;
-        lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
+        if(bestCar.score != lastScore) {
+            console.log("score: " + bestCar.score);
+            lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
+        }
     }
+
     simulate();
 }
