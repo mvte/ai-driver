@@ -17,48 +17,73 @@ const networkCtx = networkCanvas.getContext('2d');
 let road = new Road(carCanvas.width/2, carCanvas.width*0.9, 3);
 Car.setPassedThreshold(25);
 let n = 1000;
-let cars = generateCars(n, generation);
-let bestCar = cars[0]; 
+let cars;
+let bestCar; 
 let traffic = generateTraffic();
 
-Info.update(generation, bestCar.name);
+worker.onmessage = ((event) => {
+    console.log("main thread received: " + event.data.type);
+    handle(event);
+});
+
+// Info.update(generation, bestCar.name);
 renderFirst();
 
+
 function onAutoClick() {
-    console.log("sendng message to worker.js");
+    console.log("sending state message to worker.js");
     let state = getState();
     worker.postMessage(state);
+}
 
-    worker.onmessage = (event) => {
-        console.log('received message: ' + event.data);
+function handle(event) {
+    switch(event.data.type) {
+        case "training_update":
+            updateVisuals(event.data.generation, event.data.bestCar);
+            break;
+        case "training_complete":
+            playCurrentGen(event);
+            break;
+        default: 
+            console.log("unrecognized message type");
     }
+}
+
+function updateVisuals(gen, best) {
+    generation = gen;
+    bestCar = best;
+    Info.update(generation, bestCar.name);
+    
+    networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
+    Visualizer.drawNetwork(networkCtx, bestCar.brain);
 }
 
 function getState() {
     // return ["auto", generation, cars, bestCar, traffic, road, n];
     // pass all necessary data to reconstruct the objects to run the simulation
 
-    let bestCarData = {
-        "x": bestCar.x, "y": bestCar.y, "width": bestCar.width, "height": bestCar.height, 
-        "name": bestCar.name, "speed": bestCar.speed, "generation": bestCar.generation, "id": bestCar.id
-    };
-
-    let bestCarBrain = bestCar.brain;
-
-    let roadData = {
-        "x": road.x, "y": road.y, "width": road.width, "height": road.height, "laneWidth": road.laneWidth, "laneCount": road.laneCount
-    };
-
     let state = {
         "type": "auto",
         "gen": generation,
-        "bestCarData": bestCarData,
-        "bestCarBrain": bestCarBrain,
-        "road": roadData,
-        "n": n
+        "bestCar": bestCar,
+        "road": road,
+        "n": n,
     };
 
     return state;
+}
+
+function playCurrentGen(event) {
+    generation = event.data.generation;
+    bestCar = event.data.bestCar;
+
+    cars = [];
+    for(let i = 0; i < event.data.cars.length; i++) {
+        let car = event.data.cars[i];
+        cars.push(new Car(car.x, car.y, car.width, car.height, "AI", car.speed, car.generation, i));
+    }
+    cars[0].brain = bestCar.brain;
+    animateCurrentGen();
 }
 
 function animateCurrentGen() {
@@ -108,27 +133,27 @@ function generateTraffic() {
     ];
 }
 
-// function findBestCar(cars) {
-//     let bestCarCandidates = cars.filter(c => c.score == Math.max(
-//         ...cars.map(c => c.score)));
-//     let bestCar = bestCarCandidates.find(c => c.y == Math.min(
-//         ...bestCarCandidates.map(c => c.y)));
-//     return bestCar;
-// }
+function findBestCar(cars) {
+    let bestCarCandidates = cars.filter(c => c.score == Math.max(
+        ...cars.map(c => c.score)));
+    let bestCar = bestCarCandidates.find(c => c.y == Math.min(
+        ...bestCarCandidates.map(c => c.y)));
+    return bestCar;
+}
 
 function renderFirst() {
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
     road.draw(carCtx);
-    for(let i = 0; i < traffic.length; i++) {
-        traffic[i].draw(carCtx, '#F8F0E3');
-    }
-    for(let i = 0; i < cars.length; i++) {
-        cars[i].draw(carCtx, '#819C8B');
-    }
+    // for(let i = 0; i < traffic.length; i++) {
+    //     traffic[i].draw(carCtx, '#F8F0E3');
+    // }
+    // for(let i = 0; i < cars.length; i++) {
+    //     cars[i].draw(carCtx, '#819C8B');
+    // }
     carCtx.save();
-    carCtx.translate(0, -bestCar.y + carCanvas.height*0.7); 
-    Visualizer.drawNetwork(networkCtx, bestCar.brain);
+    //carCtx.translate(0, -bestCar.y + carCanvas.height*0.7); 
+    //Visualizer.drawNetwork(networkCtx, bestCar.brain);
 }
 
 function animate() {
@@ -143,7 +168,6 @@ function animate() {
     }
 
     bestCar = findBestCar(cars);
-    console.log(bestCar.score);
 
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
@@ -168,16 +192,21 @@ function animate() {
     if(bestCar.damaged == true) {
         frameCount++;
         if(frameCount > 300) {
+            console.log(bestCar.brain);
             return;
         }
-    } else if (lastScore == bestCar.score && bestCar.score != 0) {
+    } else if (lastScore == bestCar.score) {
         frameCount++;
         if(frameCount > 700) {
+            console.log(bestCar.brain);
             return;
         }
     } else {
         frameCount = 0;
-        lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
+        if(bestCar.score != lastScore) {
+            console.log("score: " + bestCar.score);
+            lastScore = bestCar.score != lastScore ? bestCar.score : lastScore;
+        }
     }
     requestAnimationFrame(animate);
 }
