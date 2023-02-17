@@ -10,6 +10,10 @@ let frameCount = 0;
 let lastScore = 0;
 //the latest generation recorded
 let generation = 0;
+//training status
+let training = false;
+let playing = false;
+
 
 const carCtx = carCanvas.getContext('2d');
 const networkCtx = networkCanvas.getContext('2d');
@@ -26,22 +30,31 @@ worker.onmessage = ((event) => {
     handle(event);
 });
 
-// Info.update(generation, bestCar.name);
 renderFirst();
 
 
 function onAutoClick() {
+    if(training || playing){ 
+        console.log("cannot begin training");
+        return;
+    }
+
     console.log("sending state message to worker.js");
     let state = getState();
     worker.postMessage(state);
+    Info.updateStatus("Starting");
+    training = true;
 }
 
 function handle(event) {
     switch(event.data.type) {
         case "training_update":
             updateVisuals(event.data.generation, event.data.bestCar);
+            Info.updateStatus("In Progress");
             break;
         case "training_complete":
+            training = false;
+            Info.updateStatus("Complete");
             playCurrentGen(event);
             break;
         default: 
@@ -52,7 +65,7 @@ function handle(event) {
 function updateVisuals(gen, best) {
     generation = gen;
     bestCar = best;
-    Info.update(generation, bestCar.name);
+    Info.updateInfo(generation, bestCar.name);
     
     networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
     Visualizer.drawNetwork(networkCtx, bestCar.brain);
@@ -74,6 +87,7 @@ function getState() {
 }
 
 function playCurrentGen(event) {
+    playing = true;
     generation = event.data.generation;
     bestCar = event.data.bestCar;
 
@@ -87,6 +101,11 @@ function playCurrentGen(event) {
 }
 
 function animateCurrentGen() {
+    if(training) {
+        console.log("please wait until training is done");
+        return;
+    }
+
     frameCount = 0;
     traffic = generateTraffic();
     for(let i = 0; i < cars.length; i++) {              
@@ -145,15 +164,9 @@ function renderFirst() {
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
     road.draw(carCtx);
-    // for(let i = 0; i < traffic.length; i++) {
-    //     traffic[i].draw(carCtx, '#F8F0E3');
-    // }
-    // for(let i = 0; i < cars.length; i++) {
-    //     cars[i].draw(carCtx, '#819C8B');
-    // }
+
     carCtx.save();
-    //carCtx.translate(0, -bestCar.y + carCanvas.height*0.7); 
-    //Visualizer.drawNetwork(networkCtx, bestCar.brain);
+    //carCtx.translate(0, -bestCar.y + carCanvas.height*0.7);
 }
 
 function animate() {
@@ -192,13 +205,13 @@ function animate() {
     if(bestCar.damaged == true) {
         frameCount++;
         if(frameCount > 300) {
-            console.log(bestCar.brain);
+            playing = false;
             return;
         }
     } else if (lastScore == bestCar.score) {
         frameCount++;
         if(frameCount > 700) {
-            console.log(bestCar.brain);
+            playing = false;
             return;
         }
     } else {
