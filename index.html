@@ -4,23 +4,36 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="infoBox">
-        <div id="infoBoxTitle">Info</div>
-        <div id="infoBoxContent">
-            <div id="infoBoxContentTitle">Generation</div>
-            <div id="generation">0</div>
+    <div class="verticalBar">
+        <div class="box info">
+            <div class="info title" id="infoBoxTitle">Info</div>
+            <div class="info content" id="infoBoxContent">
+                <div id="infoBoxContentTitle">Generation</div>
+                <div id="generation">0</div>
+            </div>
+            <div class="info content" id="infoBoxContent">
+                <div id="infoBoxContentTitle">Best fitness</div>
+                <div id="bestFitness">0</div>
+            </div>
         </div>
-        <div id="infoBoxContent">
-            <div id="infoBoxContentTitle">Best fitness</div>
-            <div id="bestFitness">0</div>
+        <div class="box trainingStatus">
+            <div class="status title" id="statusHeader">
+                Status
+            </div>
+            <div class="status content" id="status">
+                Not Training
+            </div>
         </div>
-        <button onclick="onAutoClick()">auto</button>
-        <button onclick="animateCurrentGen()">manual</button>
+        <div class="box settings">
+            <div class="settings title" id="settingsHeader">
+                Settings
+            </div>
+            
+        </div>
     </div>
-    
     <div id="verticalButtons">
-        <button onclick="save()">💾</button>
-        <button onclick="discard()">🗑️</button>
+        <button onclick="onAutoClick()">Train</button>
+        <button onclick="animateCurrentGen()">Play</button>
     </div>
     <canvas id="carCanvas"></canvas>
     <canvas id="networkCanvas"></canvas>
